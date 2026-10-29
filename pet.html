@@ -1,0 +1,101 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<title>Pet Details - PawPals</title>
+<style>
+  :root { --primary:#00b8a9; --primary-dark:#00897b; --accent:#ff8c42; --text-dark:#2d2d3a; --text-light:#8a8a9a; --error:#e63946; --bg:#fdf6f0; }
+  * { box-sizing:border-box; }
+  body { margin:0; font-family:'Segoe UI',Arial,sans-serif; background:var(--bg); color:var(--text-dark); }
+  nav { background:var(--primary); color:white; display:flex; align-items:center; justify-content:space-between; padding:14px 28px; }
+  nav .brand { font-size:19px; font-weight:800; }
+  nav a { color:white; text-decoration:none; font-weight:600; margin-left:18px; font-size:14px; }
+  nav a:hover { text-decoration:underline; }
+  .wrap { max-width:460px; margin:40px auto; padding:0 20px; }
+  .detailCard { background:white; border-radius:20px; box-shadow:0 10px 30px rgba(0,0,0,0.08); padding:30px; text-align:center; }
+  .detailCard .emoji { font-size:60px; }
+  .detailCard h1 { margin:8px 0 2px; font-size:24px; }
+  .detailCard .meta { font-size:13.5px; color:var(--text-light); margin-bottom:14px; }
+  .detailCard .bio { font-size:14.5px; color:var(--text-dark); margin-bottom:20px; }
+  .adoptedMsg { background:#e3f9e5; color:#1b9e4b; font-weight:700; padding:12px; border-radius:10px; font-size:14px; }
+  .adoptForm { text-align:left; border-top:1px solid #f0f0f5; padding-top:18px; margin-top:6px; }
+  .adoptForm h3 { font-size:15px; margin:0 0 10px; }
+  .adoptForm input, .adoptForm textarea { width:100%; padding:11px 12px; border:1.5px solid #e4e4ec; border-radius:10px; font-size:13.5px; margin-bottom:8px; font-family:inherit; outline:none; }
+  .adoptForm input:focus, .adoptForm textarea:focus { border-color:var(--primary); }
+  .adoptForm textarea { resize:vertical; min-height:70px; }
+  .adoptForm button { width:100%; padding:11px; border:none; border-radius:10px; background:var(--primary); color:white; font-weight:700; cursor:pointer; }
+  .adoptForm button:hover { background:var(--primary-dark); }
+  .back-link { display:inline-block; margin-top:16px; font-size:13px; color:var(--primary-dark); text-decoration:none; }
+  #formMsg { font-size:13px; font-weight:700; margin-top:8px; min-height:18px; }
+</style>
+</head>
+<body>
+  <nav>
+    <span class="brand">🐾 PawPals</span>
+    <span><a href="index.html">Home</a><a href="admin.html">Admin</a></span>
+  </nav>
+
+  <div class="wrap">
+    <div class="detailCard" id="detailWrap">Loading...</div>
+    <a class="back-link" href="index.html">&larr; Back to all pets</a>
+  </div>
+
+  <script>
+    const API_URL = "http://127.0.0.1:8000";
+    const EMOJI = { Dog: "🐶", Cat: "🐱", Rabbit: "🐰", Bird: "🐦", Hamster: "🐹" };
+    const petId = new URLSearchParams(window.location.search).get("id");
+
+    async function loadPet() {
+      const res = await fetch(API_URL + `/pets/${petId}`);
+      if (!res.ok) {
+        document.getElementById("detailWrap").innerHTML = "<p>Pet not found.</p>";
+        return;
+      }
+      const pet = await res.json();
+      document.getElementById("detailWrap").innerHTML = `
+        <div class="emoji">${EMOJI[pet.species] || "🐾"}</div>
+        <h1>${pet.name}</h1>
+        <div class="meta">${pet.species} • ${pet.age} yr old</div>
+        <p class="bio">${pet.bio}</p>
+        ${pet.adopted ? '<p class="adoptedMsg">🎉 This pet has already found a home!</p>' : renderForm()}
+        <p id="formMsg"></p>
+      `;
+    }
+
+    function renderForm() {
+      return `
+        <div class="adoptForm">
+          <h3>Request to Adopt ${""}</h3>
+          <input type="text" id="nameInput" placeholder="Your name">
+          <textarea id="msgInput" placeholder="Why would you be a great owner?"></textarea>
+          <button onclick="submitRequest()">Submit Request</button>
+        </div>
+      `;
+    }
+
+    async function submitRequest() {
+      const name = document.getElementById("nameInput").value;
+      const message = document.getElementById("msgInput").value;
+      if (!name.trim() || !message.trim()) return;
+
+      const res = await fetch(API_URL + `/pets/${petId}/adopt-request`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ requester_name: name, message })
+      });
+      const data = await res.json();
+      const formMsg = document.getElementById("formMsg");
+
+      if (res.ok) {
+        formMsg.style.color = "#1b9e4b";
+        formMsg.textContent = "Request sent! The shelter will review it soon. 🎉";
+      } else {
+        formMsg.style.color = "#e63946";
+        formMsg.textContent = data.detail;
+      }
+    }
+
+    loadPet();
+  </script>
+</body>
+</html>

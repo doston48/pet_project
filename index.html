@@ -1,0 +1,79 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<title>PawPals Pet Adoption</title>
+<style>
+  :root { --primary:#00b8a9; --primary-dark:#00897b; --accent:#ff8c42; --text-dark:#2d2d3a; --text-light:#8a8a9a; --error:#e63946; --bg:#fdf6f0; }
+  * { box-sizing:border-box; }
+  body { margin:0; font-family:'Segoe UI',Arial,sans-serif; background:var(--bg); color:var(--text-dark); }
+  nav { background:var(--primary); color:white; display:flex; align-items:center; justify-content:space-between; padding:14px 28px; }
+  nav .brand { font-size:19px; font-weight:800; }
+  nav a { color:white; text-decoration:none; font-weight:600; margin-left:18px; font-size:14px; }
+  nav a:hover { text-decoration:underline; }
+  .hero { text-align:center; padding:34px 20px 16px; }
+  .hero h1 { margin:0 0 6px; font-size:26px; }
+  .hero p { color:var(--text-light); margin:0; }
+  .filter-row { text-align:center; margin:16px 0; font-size:14px; }
+  .grid { display:grid; grid-template-columns:repeat(auto-fill,minmax(230px,1fr)); gap:18px; max-width:1000px; margin:0 auto; padding:0 24px 40px; }
+  .petCard { background:white; border-radius:16px; box-shadow:0 10px 30px rgba(0,0,0,0.08); padding:20px; text-align:center; }
+  .petCard .emoji { font-size:46px; }
+  .petCard h3 { margin:8px 0 2px; font-size:17px; }
+  .petCard .meta { font-size:12.5px; color:var(--text-light); margin-bottom:8px; }
+  .petCard .bio { font-size:13px; color:var(--text-dark); margin-bottom:12px; min-height:36px; }
+  .petCard a.view { display:inline-block; background:var(--primary); color:white; text-decoration:none; padding:8px 16px; border-radius:10px; font-size:13px; font-weight:700; }
+  .petCard a.view:hover { background:var(--primary-dark); }
+  .badge { display:inline-block; background:#ffe6d6; color:var(--accent); font-size:11px; font-weight:700; padding:3px 10px; border-radius:20px; margin-bottom:8px; }
+  .badge.adopted { background:#e3f9e5; color:#1b9e4b; }
+  #empty { text-align:center; color:var(--text-light); padding:40px; }
+</style>
+</head>
+<body>
+  <nav>
+    <span class="brand">🐾 PawPals</span>
+    <span><a href="index.html">Home</a><a href="admin.html">Admin</a></span>
+  </nav>
+
+  <div class="hero">
+    <h1>Find your new best friend</h1>
+    <p>Every pet here is looking for a loving home.</p>
+  </div>
+
+  <div class="filter-row">
+    <label><input type="checkbox" id="availableOnly" onchange="loadPets()"> Show only pets available for adoption</label>
+  </div>
+
+  <div class="grid" id="petGrid"></div>
+  <p id="empty" style="display:none;">No pets match that filter right now.</p>
+
+  <script>
+    const API_URL = "http://127.0.0.1:8000";
+    const EMOJI = { Dog: "🐶", Cat: "🐱", Rabbit: "🐰", Bird: "🐦", Hamster: "🐹" };
+
+    async function loadPets() {
+      const availableOnly = document.getElementById("availableOnly").checked;
+      const res = await fetch(API_URL + `/pets?available_only=${availableOnly}`);
+      const pets = await res.json();
+      const grid = document.getElementById("petGrid");
+      grid.innerHTML = "";
+      document.getElementById("empty").style.display = pets.length ? "none" : "block";
+
+      pets.forEach(p => {
+        const div = document.createElement("div");
+        div.className = "petCard";
+        div.innerHTML = `
+          ${p.adopted ? '<span class="badge adopted">Adopted</span>' : '<span class="badge">Available</span>'}
+          <div class="emoji">${EMOJI[p.species] || "🐾"}</div>
+          <h3>${p.name}</h3>
+          <div class="meta">${p.species} • ${p.age} yr old</div>
+          <div class="bio">${p.bio}</div>
+          <a class="view" href="pet.html?id=${p.id}">View &amp; Adopt</a>
+        `;
+        grid.appendChild(div);
+      });
+    }
+
+    loadPets();
+  </script>
+</body>
+</html>

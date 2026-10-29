@@ -1,0 +1,161 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<title>Admin - PawPals</title>
+<style>
+  :root { --primary:#00b8a9; --primary-dark:#00897b; --accent:#ff8c42; --text-dark:#2d2d3a; --text-light:#8a8a9a; --error:#e63946; --bg:#fdf6f0; }
+  * { box-sizing:border-box; }
+  body { margin:0; font-family:'Segoe UI',Arial,sans-serif; background:var(--bg); color:var(--text-dark); }
+  nav { background:var(--primary); color:white; display:flex; align-items:center; justify-content:space-between; padding:14px 28px; }
+  nav .brand { font-size:19px; font-weight:800; }
+  nav a { color:white; text-decoration:none; font-weight:600; margin-left:18px; font-size:14px; }
+  nav a:hover { text-decoration:underline; }
+  .wrap { max-width:640px; margin:0 auto; padding:30px 20px 60px; }
+  section { background:white; border-radius:16px; box-shadow:0 10px 30px rgba(0,0,0,0.06); padding:22px; margin-bottom:24px; }
+  section h2 { margin:0 0 14px; font-size:16px; }
+  .add-row { display:flex; flex-wrap:wrap; gap:8px; margin-bottom:10px; }
+  .add-row input, .add-row select, .add-row textarea { padding:10px 12px; border:1.5px solid #e4e4ec; border-radius:10px; font-size:13.5px; font-family:inherit; outline:none; }
+  .add-row input:focus, .add-row select:focus, .add-row textarea:focus { border-color:var(--primary); }
+  #bioInput { width:100%; min-height:60px; resize:vertical; }
+  #nameInput, #speciesInput { flex:1; min-width:120px; }
+  #ageInput { width:80px; }
+  button.primary { padding:10px 18px; border:none; border-radius:10px; background:var(--primary); color:white; font-weight:700; cursor:pointer; }
+  button.primary:hover { background:var(--primary-dark); }
+  .petRow, .reqRow { display:flex; align-items:flex-start; gap:10px; padding:11px 0; border-bottom:1px solid #f0f0f5; }
+  .petRow:last-child, .reqRow:last-child { border-bottom:none; }
+  .petRow .info, .reqRow .info { flex:1; font-size:13.5px; }
+  .petRow .info b, .reqRow .info b { font-size:14px; }
+  .reqRow .msg { color:var(--text-light); font-size:12.5px; margin-top:2px; }
+  .status-badge { font-size:11px; font-weight:700; padding:3px 9px; border-radius:20px; }
+  .status-badge.pending { background:#fff3e0; color:var(--accent); }
+  .status-badge.approved { background:#e3f9e5; color:#1b9e4b; }
+  .status-badge.rejected { background:#fdecec; color:var(--error); }
+  button.small { border:none; border-radius:8px; font-size:12px; font-weight:700; padding:6px 10px; cursor:pointer; }
+  button.approve { background:#e3f9e5; color:#1b9e4b; }
+  button.reject { background:#fdecec; color:var(--error); }
+  button.del { background:none; color:var(--error); font-size:15px; }
+  #empty-pets, #empty-requests { color:var(--text-light); font-size:13px; }
+</style>
+</head>
+<body>
+  <nav>
+    <span class="brand">🐾 PawPals</span>
+    <span><a href="index.html">Home</a><a href="admin.html">Admin</a></span>
+  </nav>
+
+  <div class="wrap">
+    <section>
+      <h2>Add a New Pet</h2>
+      <div class="add-row">
+        <input type="text" id="nameInput" placeholder="Name">
+        <select id="speciesInput">
+          <option>Dog</option>
+          <option>Cat</option>
+          <option>Rabbit</option>
+          <option>Bird</option>
+          <option>Hamster</option>
+        </select>
+        <input type="number" id="ageInput" placeholder="Age" min="0">
+      </div>
+      <textarea id="bioInput" placeholder="Short bio..."></textarea>
+      <br><br>
+      <button class="primary" onclick="addPet()">Add Pet</button>
+    </section>
+
+    <section>
+      <h2>All Pets</h2>
+      <div id="petList"></div>
+      <p id="empty-pets">No pets yet.</p>
+    </section>
+
+    <section>
+      <h2>Pending Adoption Requests</h2>
+      <div id="requestList"></div>
+      <p id="empty-requests">No pending requests right now.</p>
+    </section>
+  </div>
+
+  <script>
+    const API_URL = "http://127.0.0.1:8000";
+
+    async function loadPets() {
+      const res = await fetch(API_URL + "/pets");
+      const pets = await res.json();
+      const list = document.getElementById("petList");
+      list.innerHTML = "";
+      document.getElementById("empty-pets").style.display = pets.length ? "none" : "block";
+
+      pets.forEach(p => {
+        const div = document.createElement("div");
+        div.className = "petRow";
+        div.innerHTML = `
+          <div class="info"><b>${p.name}</b> — ${p.species}, ${p.age} yr old ${p.adopted ? "(adopted)" : ""}</div>
+          <button class="small del" onclick="deletePet(${p.id})">✕</button>
+        `;
+        list.appendChild(div);
+      });
+    }
+
+    async function loadRequests() {
+      const res = await fetch(API_URL + "/requests?status=pending");
+      const reqs = await res.json();
+      const list = document.getElementById("requestList");
+      list.innerHTML = "";
+      document.getElementById("empty-requests").style.display = reqs.length ? "none" : "block";
+
+      for (const r of reqs) {
+        const petRes = await fetch(API_URL + `/pets/${r.pet_id}`);
+        const pet = petRes.ok ? await petRes.json() : { name: "Unknown pet" };
+
+        const div = document.createElement("div");
+        div.className = "reqRow";
+        div.innerHTML = `
+          <div class="info">
+            <b>${r.requester_name}</b> wants to adopt <b>${pet.name}</b>
+            <div class="msg">${r.message}</div>
+          </div>
+          <button class="small approve" onclick="approve(${r.id})">Approve</button>
+          <button class="small reject" onclick="reject(${r.id})">Reject</button>
+        `;
+        list.appendChild(div);
+      }
+    }
+
+    async function addPet() {
+      const name = document.getElementById("nameInput");
+      const species = document.getElementById("speciesInput").value;
+      const age = document.getElementById("ageInput");
+      const bio = document.getElementById("bioInput");
+      if (!name.value.trim() || !age.value || !bio.value.trim()) return;
+
+      await fetch(API_URL + "/pets", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ name: name.value, species, age: parseInt(age.value), bio: bio.value })
+      });
+      name.value = ""; age.value = ""; bio.value = "";
+      loadPets();
+    }
+
+    async function deletePet(id) {
+      await fetch(API_URL + `/pets/${id}`, { method: "DELETE" });
+      loadPets();
+    }
+
+    async function approve(id) {
+      await fetch(API_URL + `/requests/${id}/approve`, { method: "PATCH" });
+      loadRequests();
+      loadPets();
+    }
+
+    async function reject(id) {
+      await fetch(API_URL + `/requests/${id}/reject`, { method: "PATCH" });
+      loadRequests();
+    }
+
+    loadPets();
+    loadRequests();
+  </script>
+</body>
+</html>

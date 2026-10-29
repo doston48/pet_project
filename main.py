@@ -37,8 +37,14 @@ def home():
     return{"message": "pet api is running"}
 
 @app.get("/pets")
-def get_pets():
-    return pets
+def get_pets(available_only: bool = False):
+    if not available_only:
+        return pets
+    result = []
+    for pet in pets:
+        if not pet["adopted"]:
+            result.append(pet)
+    return result
 
 @app.get("/pets/{pet_id}")
 def get_pet(pet_id: int):
@@ -78,4 +84,33 @@ def reject_request(request_id: int):
         if request["id"] == request_id:
             request["status"] = "rejected"
             return request
-    raise HTTPException(status_code=404,detail="not found")            
+    raise HTTPException(status_code=404,detail="not found")  
+
+@app.post("/pets/{pet_id}/adopt-request")
+def request_adoption(pet_id: int, data: Request):
+    global next_request_id
+    pet = next((pet for pet in pets if pet["id"] == pet_id), None)
+    if pet is None:
+        raise HTTPException(status_code=404, detail="Not Found")
+    if pet["adopted"]:
+        raise HTTPException(status_code=400, detail="This pet has already been adopted")
+    new_request = {
+        "id": next_request_id,
+        "pet_id": pet_id,
+        "requester_name": data.requester_name,
+        "message": data.message,
+        "status": "pending",
+    }
+    requests.append(new_request)
+    next_request_id += 1
+    return new_request
+
+@app.get("/requests")
+def get_requests(status: str | None = None):
+    if status is None:
+        return requests
+    result = []          
+    for request in requests:
+        if request["status"] == status:
+            result.append(request)
+    return result
